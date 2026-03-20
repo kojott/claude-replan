@@ -35,8 +35,16 @@ Try these in order:
 ### Edge cases — handle before proceeding
 
 - **Empty diff** → "No changes detected — nothing to review." Stop here.
-- **>30 files changed** → "This touches [N] files. To give a thorough review, can you narrow the scope? For example: specific directories, a commit range, or the most critical files." If the user declines to narrow scope, proceed with the 30 most recently modified files and note the truncation in the output.
-- **<5 lines changed, single file** → Skip parallel dispatch. Run a single comprehensive review agent using the prompt below, then present findings and stop.
+- **>30 files changed** → "This touches [N] files. To give a thorough review, can you narrow the scope? For example: specific directories, a commit range, or the most critical files." If the user declines to narrow scope, proceed with the 30 most recently modified files by git history (`git log --diff-filter=M --name-only`) and note the truncation in the **Scope** section of the synthesis output.
+- **<5 lines changed, single file** → Skip parallel dispatch. Run a single comprehensive review agent using the Single-Agent Prompt below, then present findings and stop.
+
+### Gather context
+
+Before branching to either the single-agent or multi-agent path, always gather context first:
+
+- Read changed files in full (not just diffs — agents need surrounding context)
+- Read CLAUDE.md / project conventions if they exist
+- Collect the diff output for line-level review
 
 ### Single-Agent Prompt (for trivial changes)
 
@@ -60,25 +68,22 @@ You are performing a comprehensive review of a small code change against an impl
 Be precise — reference specific plan items and file:line locations.
 
 ## Output Format
-### Comprehensive Review
+### Single-Agent Review
 
 **Verdict: PASS | ISSUES FOUND | CONCERNS**
 
 **Plan Compliance:**
 - [x] or [ ] [Plan item] — [status]
 
-**Issues** (any severity):
+**Critical Issues** (must fix):
 - [file:line]: [issue] → [category: plan/quality/security] → [suggested fix]
 
-**Observations** (informational):
-- [observation]
+**Important Issues** (should fix):
+- [file:line]: [issue] → [category: plan/quality/security] → [suggested fix]
+
+**Minor Issues** (informational):
+- [file:line]: [observation]
 ```
-
-### Gather context
-
-- Read changed files in full (not just diffs — agents need surrounding context)
-- Read CLAUDE.md / project conventions if they exist
-- Collect the diff output for line-level review
 
 ## Step 2: Design Review Agents
 
@@ -218,7 +223,7 @@ Check for:
 6. Security misconfiguration — debug enabled, default credentials, unnecessary features?
 7. Cross-Site Scripting — unescaped user content in output?
 8. Insecure deserialization — untrusted data deserialized?
-9. New dependencies — flag any newly added dependencies and recommend they be audited (e.g., `npm audit`, `pip-audit`)
+9. Dependency changes — flag any newly added dependencies AND dependency version changes (in lockfiles, package manifests, etc.) and recommend they be audited (e.g., `npm audit`, `pip-audit`)
 10. Insufficient logging — security events not logged?
 
 Also check: path traversal, race conditions, SSRF, open redirects.
@@ -402,7 +407,7 @@ Only flag deviations from established patterns. Don't invent new standards.
 Once all agents return:
 
 1. **Collect all findings** — read every agent's review
-2. **Deduplicate** — if multiple agents flagged the same issue, merge into one finding with the most specific file:line reference. When agents assigned different severities to the same issue, use the **highest** severity (e.g., if one agent says Critical and another says Minor, it's Critical)
+2. **Deduplicate** — if multiple agents flagged the same issue (same file:line AND same nature of concern), merge into one finding with the most specific description. When merged agents assigned different severities, use the **highest** severity. Do NOT merge issues that share a file:line but describe different problems (e.g., a naming issue and a security vulnerability at the same line are separate findings).
 3. **Categorize by severity:**
    - **Critical**: Bugs, security vulnerabilities, broken functionality, unimplemented plan items
    - **Important**: Missing error handling, untested paths, plan deviations, performance issues
@@ -411,6 +416,9 @@ Once all agents return:
 
 ```
 ## Implementation Review Results
+
+### Scope
+[If scope was truncated (e.g., >30 files narrowed to 30), note it here. Otherwise omit this section.]
 
 ### Agents Dispatched
 | Agent | Verdict |
