@@ -1,0 +1,18 @@
+{
+  "name": "replan",
+  "version": "1.0.0",
+  "description": "Review and validate implementation plans by launching parallel review subagents from multiple perspectives",
+  "author": {
+    "name": "kojott"
+  },
+  "repository": "https://github.com/kojott/claude-replan",
+  "license": "MIT",
+  "keywords": [
+    "plan-review",
+    "validation",
+    "subagents",
+    "parallel-review",
+    "best-practices",
+    "code-standards"
+  ]
+}
