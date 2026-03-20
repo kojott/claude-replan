@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Review and validate implementation plans by launching parallel review subagents from multiple perspectives",
   "author": {
-    "name": "kojott"
+    "name": "Jiri George Dolejs",
+    "url": "https://jiridolejs.cz"
   },
   "repository": "https://github.com/kojott/claude-replan",
   "license": "MIT + Commons Clause",

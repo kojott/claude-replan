@@ -1,11 +1,12 @@
 {
   "name": "claude-replan",
   "owner": {
-    "name": "kojott"
+    "name": "Jiri George Dolejs",
+    "url": "https://jiridolejs.cz"
   },
   "metadata": {
     "description": "Plan validation plugin for Claude Code - reviews implementation plans with parallel subagents",
-    "homepage": "https://github.com/kojott/claude-replan"
+    "homepage": "https://jiridolejs.cz"
   },
   "plugins": [
     {
