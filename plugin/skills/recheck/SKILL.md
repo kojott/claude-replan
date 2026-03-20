@@ -1,6 +1,6 @@
 ---
 name: recheck
-description: Post-implementation review — validates that code matches the original plan and launches parallel subagents for quality, security, and test coverage checks. Use after completing implementation or when user invokes /recheck. Differentiates from /code-review by focusing on plan compliance and multi-perspective parallel validation.
+description: Post-implementation review — validates that code matches the original plan and launches parallel subagents for quality, security, and test coverage checks. Use after completing implementation or when user invokes /recheck. Primary value is plan-compliance verification plus multi-perspective parallel validation.
 allowed-tools: [Agent, Read, Glob, Grep, Bash]
 ---
 
@@ -16,9 +16,9 @@ Figure out what changed and what the plan was.
 
 ### Find the plan
 
-- Check the current conversation for the plan that was executed
 - If the user provides a file path, read the plan from that file
-- If no plan is visible, ask: "Which plan should I check this implementation against? Paste it or give me a file path."
+- Check the current conversation for an explicit plan document — look for structured plans with numbered steps, task lists, or documents labeled as plans. Do NOT treat casual conversation, commit messages, or ad-hoc instructions as "the plan."
+- If no clear plan is found, always ask: "Which plan should I check this implementation against? Paste it or give me a file path." Do not guess or infer a plan from context.
 
 ### Find the changes
 
@@ -26,16 +26,53 @@ Try these in order:
 
 1. **User-specified files/range** → use exactly that
 2. **Git repo exists** → run `git log --oneline -10` to understand recent history, then:
+   - Detect the base branch: run `git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null` to find the upstream tracking branch. If that fails, try `git remote show origin 2>/dev/null | grep 'HEAD branch'` to find the default branch. Fall back to checking if `origin/main` or `origin/master` exists. If none work, ask the user for the base branch.
    - For uncommitted changes: `git diff` and `git diff --cached`
-   - For committed work: `git diff origin/main...HEAD` (or appropriate base branch)
+   - For committed work: `git diff <detected-base>...HEAD`
    - Combine both if there are staged + unstaged changes
 3. **No git repo** → ask user for the list of files to review
 
 ### Edge cases — handle before proceeding
 
 - **Empty diff** → "No changes detected — nothing to review." Stop here.
-- **>30 files changed** → "This touches [N] files. To give a thorough review, can you narrow the scope? For example: specific directories, a commit range, or the most critical files." Wait for user response.
-- **<5 lines changed, single file** → Skip parallel dispatch. Run a single comprehensive review agent that covers plan compliance + code quality + security in one pass. Present findings and stop.
+- **>30 files changed** → "This touches [N] files. To give a thorough review, can you narrow the scope? For example: specific directories, a commit range, or the most critical files." If the user declines to narrow scope, proceed with the 30 most recently modified files and note the truncation in the output.
+- **<5 lines changed, single file** → Skip parallel dispatch. Run a single comprehensive review agent using the prompt below, then present findings and stop.
+
+### Single-Agent Prompt (for trivial changes)
+
+```
+You are performing a comprehensive review of a small code change against an implementation plan. Since this is a trivial change, you're covering plan compliance, code quality, and security in a single pass.
+
+## The Original Plan
+[FULL PLAN TEXT]
+
+## Changed Files
+[LIST OF FILES WITH DIFFS]
+
+## Full File Contents
+[CHANGED FILES IN FULL]
+
+## Your Review Mandate
+1. **Plan compliance**: Does this change match what the plan specified? Any plan items missing or only partially done?
+2. **Code quality**: DRY, naming, error handling, unnecessary complexity?
+3. **Security**: Any injection, auth, secrets, or validation concerns?
+
+Be precise — reference specific plan items and file:line locations.
+
+## Output Format
+### Comprehensive Review
+
+**Verdict: PASS | ISSUES FOUND | CONCERNS**
+
+**Plan Compliance:**
+- [x] or [ ] [Plan item] — [status]
+
+**Issues** (any severity):
+- [file:line]: [issue] → [category: plan/quality/security] → [suggested fix]
+
+**Observations** (informational):
+- [observation]
+```
 
 ### Gather context
 
@@ -60,7 +97,8 @@ Based on what changed, select which review perspectives are needed. The **plan c
 | **Project standards** | CLAUDE.md / linting config / conventions exist | Naming, file structure, patterns, error handling conventions, import ordering, test structure |
 
 **Rules for agent count:**
-- Minimum 3 agents: plan compliance + code quality + fresh perspective
+- Minimum 4 agents for code changes: plan compliance + code quality + test coverage + fresh perspective
+- Minimum 3 agents for non-code changes (docs, config only): plan compliance + code quality + fresh perspective
 - Always include **plan compliance** — this is the primary value of /recheck
 - Always include **fresh perspective** — catches what others miss
 - Scale up to 7 with complexity and scope
@@ -70,8 +108,8 @@ Based on what changed, select which review perspectives are needed. The **plan c
 
 Launch all review agents simultaneously using the Agent tool. Each agent gets:
 
-1. **The list of changed files and diff content**
-2. **Full file contents** for key changed files (agents need surrounding context, not just diffs)
+1. **The full diff** — always include the complete diff output
+2. **Full file contents** for key changed files — include full contents for files with >20 changed lines or files directly implementing plan items. For other changed files, include only the diff. If total content would exceed ~50KB, prioritize plan-critical files and note which files were truncated.
 3. **The original plan text** (critical for plan compliance agent)
 4. **Project context** — CLAUDE.md contents, conventions, tech stack
 5. **A specific review mandate** with inline criteria
@@ -180,7 +218,7 @@ Check for:
 6. Security misconfiguration — debug enabled, default credentials, unnecessary features?
 7. Cross-Site Scripting — unescaped user content in output?
 8. Insecure deserialization — untrusted data deserialized?
-9. Known vulnerable components — outdated dependencies with CVEs?
+9. New dependencies — flag any newly added dependencies and recommend they be audited (e.g., `npm audit`, `pip-audit`)
 10. Insufficient logging — security events not logged?
 
 Also check: path traversal, race conditions, SSRF, open redirects.
@@ -364,7 +402,7 @@ Only flag deviations from established patterns. Don't invent new standards.
 Once all agents return:
 
 1. **Collect all findings** — read every agent's review
-2. **Deduplicate** — if multiple agents flagged the same issue, merge into one finding with the most specific file:line reference
+2. **Deduplicate** — if multiple agents flagged the same issue, merge into one finding with the most specific file:line reference. When agents assigned different severities to the same issue, use the **highest** severity (e.g., if one agent says Critical and another says Minor, it's Critical)
 3. **Categorize by severity:**
    - **Critical**: Bugs, security vulnerabilities, broken functionality, unimplemented plan items
    - **Important**: Missing error handling, untested paths, plan deviations, performance issues
@@ -404,10 +442,13 @@ Once all agents return:
 
 If the user wants fixes:
 
-- Dispatch a **separate fix agent** for each critical/important issue (or group related issues)
-- Each fix agent gets: the specific issue, the file contents, and clear instructions
-- The fix agent uses Edit/Write tools — the user reviews and approves each change
-- Do NOT auto-fix without user confirmation — code changes are harder to reverse than plan updates
+- First, present a numbered list of all proposed fixes with the specific changes described
+- Ask the user to confirm which fixes to apply (all, specific numbers, or none)
+- Only after confirmation, dispatch a **separate fix agent** for each approved fix (or group related fixes)
+- Each fix agent gets: the specific issue, the file contents, the exact change to make, and instructions to make only that change
+- Do NOT dispatch fix agents without explicit user approval — code changes are harder to reverse than plan updates
+
+Note: Fix agents are subagents and can use Edit/Write tools even though this skill's allowed-tools excludes Edit. This is intentional — the confirmation gate above is the safety mechanism, not tool restrictions.
 
 ## What /recheck Is NOT
 
