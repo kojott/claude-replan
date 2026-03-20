@@ -35,7 +35,7 @@ Try these in order:
 ### Edge cases — handle before proceeding
 
 - **Empty diff** → "No changes detected — nothing to review." Stop here.
-- **>30 files changed** → "This touches [N] files. To give a thorough review, can you narrow the scope? For example: specific directories, a commit range, or the most critical files." If the user declines to narrow scope, proceed with the 30 most recently modified files by git history (`git log --diff-filter=M --name-only`) and note the truncation in the **Scope** section of the synthesis output.
+- **>30 files changed** → "This touches [N] files. To give a thorough review, can you narrow the scope? For example: specific directories, a commit range, or the most critical files." If the user declines to narrow scope, proceed with the 30 most recently changed files by git history (`git log --name-only --format='' | awk 'NF' | awk '!seen[$0]++' | head -30`) and note the truncation in the **Scope** section of the synthesis output.
 - **<5 lines changed, single file** → Skip parallel dispatch. Run a single comprehensive review agent using the Single-Agent Prompt below, then present findings and stop.
 
 ### Gather context
