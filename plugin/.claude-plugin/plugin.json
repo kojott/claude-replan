@@ -1,7 +1,7 @@
 {
   "name": "replan",
-  "version": "1.0.0",
-  "description": "Review and validate implementation plans by launching parallel review subagents from multiple perspectives",
+  "version": "1.1.0",
+  "description": "Pre- and post-implementation validation with parallel subagents: /replan validates plans before execution, /recheck verifies implementations match the plan",
   "author": {
     "name": "Jiri George Dolejs",
     "url": "https://jiridolejs.cz"
@@ -10,6 +10,8 @@
   "license": "MIT + Commons Clause",
   "keywords": [
     "plan-review",
+    "plan-compliance",
+    "post-implementation",
     "validation",
     "subagents",
     "parallel-review",

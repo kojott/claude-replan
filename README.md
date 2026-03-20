@@ -1,6 +1,6 @@
 # claude-replan
 
-A Claude Code plugin that validates your implementation plans before execution by launching parallel review subagents — each checking the plan from a different angle.
+A Claude Code plugin for plan validation and post-implementation review. `/replan` validates plans before execution, `/recheck` verifies the implementation matches the plan afterward. Both use parallel review subagents checking from multiple angles.
 
 ## The problem
 
@@ -87,14 +87,75 @@ claude plugin marketplace update claude-replan
 claude plugin update replan@claude-replan
 ```
 
+## /recheck — post-implementation review
+
+You've finished implementing a plan. `/recheck` verifies the code actually matches what was planned, plus runs parallel quality/security/test reviews.
+
+```
+You: /recheck
+
+Claude: Reviewing the implementation against the plan with parallel subagents...
+
+  Agent 1 (Plan compliance)     → Did the code match the plan? Missing steps? Scope creep?
+  Agent 2 (Code quality)        → DRY, dead code, complexity, naming
+  Agent 3 (Security)            → OWASP top 10, injection, auth, secrets
+  Agent 4 (Test coverage)       → New paths tested? Edge cases? Meaningful assertions?
+  Agent 5 (Fresh perspective)   → Reads code cold: "What breaks first in production?"
+
+  ✓ All agents returned.
+
+  Plan Compliance: 8/9 items implemented, 1 partial
+  Critical: Missing input validation on user-facing endpoint (plan item #4)
+  Important: No test for error path in retry logic
+  Minor: Naming inconsistency in helper function
+
+  → Want me to fix the critical/important issues?
+```
+
+### Key differences from /replan
+
+| | /replan | /recheck |
+|---|---|---|
+| **When** | Before implementation | After implementation |
+| **Reviews** | The plan document | The code + diff |
+| **Primary focus** | Feasibility, correctness, missing steps | Plan compliance, code quality, security |
+| **Auto-fixes** | Updates plan directly | Presents findings, user decides |
+
+### What /recheck checks
+
+| Perspective | What it looks for |
+|---|---|
+| Plan compliance | Each plan item implemented? Deviations? Scope creep? |
+| Code quality | DRY, dead code, complexity, naming, error handling |
+| Security | OWASP top 10, injection, auth, secrets, access control |
+| Test coverage | New paths tested? Edge cases? Meaningful assertions? |
+| Performance | N+1 queries, O(n²), missing caching, unbounded ops |
+| Fresh perspective | "What breaks first in production?" |
+| Project standards | CLAUDE.md conventions, naming, structure |
+
+## When to use /recheck vs /code-review
+
+| Tool | Best for |
+|---|---|
+| `/recheck` | Validating implementation matches a plan. Multi-perspective parallel review (security, tests, performance, quality). Plan compliance is the primary focus. |
+| `/code-review` | General code review for bugs, logic errors, and CLAUDE.md compliance. Single-pass review without plan context. |
+| `superpowers:requesting-code-review` | Quick single-agent review before merging. |
+
+**Use /recheck when:** You had a plan, you executed it, and you want to verify nothing was missed before calling it done.
+
+**Use /code-review when:** You want a general code review without a specific plan to check against.
+
+**Use both when:** You want plan compliance verification (/recheck) AND a separate detailed bug review (/code-review).
+
 ## Usage
 
 ```
 /replan              # Review the plan in current conversation
 /replan path/to/plan.md   # Review a plan file
+/recheck             # Review implementation against the plan
 ```
 
-That's it. One command, multiple parallel reviewers, updated plan.
+One command, multiple parallel reviewers.
 
 ## Requirements
 

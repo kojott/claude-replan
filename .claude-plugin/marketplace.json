@@ -5,15 +5,15 @@
     "url": "https://jiridolejs.cz"
   },
   "metadata": {
-    "description": "Plan validation plugin for Claude Code - reviews implementation plans with parallel subagents",
+    "description": "Plan validation and post-implementation review plugin for Claude Code - validates plans before execution and checks implementations against plans with parallel subagents",
     "homepage": "https://jiridolejs.cz"
   },
   "plugins": [
     {
       "name": "replan",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "source": "./plugin",
-      "description": "Review and validate implementation plans by launching parallel review subagents from multiple perspectives"
+      "description": "Pre- and post-implementation validation with parallel subagents: /replan validates plans before execution, /recheck verifies implementations match the plan"
     }
   ]
 }
