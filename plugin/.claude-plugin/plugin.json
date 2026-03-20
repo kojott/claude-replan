@@ -6,7 +6,7 @@
     "name": "kojott"
   },
   "repository": "https://github.com/kojott/claude-replan",
-  "license": "MIT",
+  "license": "MIT + Commons Clause",
   "keywords": [
     "plan-review",
     "validation",
